@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-var MsgStartTimeUnix uint64 = func() uint64 {
+var msgStartTimeUnix uint64 = func() uint64 {
 	t, err := time.Parse("2006-01-02", "2022-03-04")
 	if err != nil {
 		panic(err)
@@ -83,7 +83,7 @@ func New(nodeid uint16) *OrderedIDCreator {
 func (creator *OrderedIDCreator) Create() OrderedID {
 
 	var tid uint64 = uint64(time.Now().UnixMilli())
-	tid -= MsgStartTimeUnix
+	tid -= msgStartTimeUnix
 	tid = tid << timestampBits
 	tid |= atomic.AddUint64(&creator.count, 1) << nodeidBits
 	tid |= creator.nodeid
@@ -105,7 +105,7 @@ func (orderedid OrderedID) String() string {
 
 // Timestamp return the timestamp
 func (orderedid OrderedID) Timestamp() uint64 {
-	return (uint64(orderedid) >> timestampBits) + MsgStartTimeUnix
+	return (uint64(orderedid) >> timestampBits) + msgStartTimeUnix
 }
 
 // NodeID return the NodeID

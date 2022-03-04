@@ -20,11 +20,28 @@ func BenchmarkCaseMID(b *testing.B) {
 	b.Log(ParseBase32(b32))
 }
 
-func BenchmarkCaseMID1(b *testing.B) {
+func TestCase1(t *testing.T) {
 
-}
+	for i := 0; i < 1000; i++ {
+		var id OrderedID
+		creator := New(1)
+		id = creator.Create()
+		idcmp32, err := ParseBase32(id.Base32())
+		if err != nil {
+			panic(err)
+		}
 
-func TestCase12312(t *testing.T) {
-	t.Errorf("%0.64b", ^uint64(18446462598732840960))
+		if id != idcmp32 {
+			panic("")
+		}
 
+		idcmp64, err := ParseBase32(id.Base32())
+		if err != nil {
+			panic(err)
+		}
+
+		if id != idcmp64 {
+			panic("")
+		}
+	}
 }
