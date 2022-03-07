@@ -1,47 +1,57 @@
 package orderedid
 
 import (
+	"strconv"
 	"testing"
-	"time"
 )
 
-func BenchmarkCaseMID(b *testing.B) {
-
+func BenchmarkCase(b *testing.B) {
 	var id OrderedID
 	creator := New(1)
 	for i := 0; i < b.N; i++ {
 		id = creator.Create()
 	}
 
-	b58 := id.Base58()
-	b32 := id.Base32()
-	b.Log(time.UnixMilli(int64(id.Timestamp())), id.Base58(), id.Base32(), uint64(id), id)
-	b.Log(ParseBase58(b58))
-	b.Log(ParseBase32(b32))
+	b.Log(id)
 }
 
 func TestCase1(t *testing.T) {
-
 	for i := 0; i < 1000; i++ {
 		var id OrderedID
 		creator := New(1)
 		id = creator.Create()
 		idcmp32, err := ParseBase32(id.Base32())
 		if err != nil {
-			panic(err)
+			t.Error(err)
 		}
 
 		if id != idcmp32 {
-			panic("")
+			t.Error("")
 		}
 
-		idcmp64, err := ParseBase32(id.Base32())
+		if strconv.FormatUint(uint64(id), 10) != idcmp32.String() {
+			t.Error("")
+		}
+
+		idcmp64, err := ParseBase58(id.Base58())
 		if err != nil {
-			panic(err)
+			t.Error(err)
 		}
 
 		if id != idcmp64 {
-			panic("")
+			t.Error("")
+		}
+
+		if strconv.FormatUint(uint64(id), 10) != idcmp64.String() {
+			t.Error("")
+		}
+
+		if id.NodeID() != 1 {
+			t.Error("")
 		}
 	}
+}
+
+func TestCase2(t *testing.T) {
+
 }

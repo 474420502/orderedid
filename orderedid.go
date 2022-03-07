@@ -3,6 +3,7 @@ package orderedid
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -67,8 +68,8 @@ const nodeidMark uint64 = 0b1111111111 //  1bit of 10
 // New nodeid <= 1024
 func New(nodeid uint16) *OrderedIDCreator {
 
-	if nodeid >= 1024 {
-		panic("nodeid must < 1024")
+	if nodeid >= (1 << nodeidBits) {
+		panic(fmt.Sprintf("nodeid must < %d", 1<<nodeidBits))
 	}
 
 	creator := &OrderedIDCreator{
@@ -85,9 +86,8 @@ func (creator *OrderedIDCreator) Create() OrderedID {
 	var tid uint64 = uint64(time.Now().UnixMilli())
 	tid -= msgStartTimeUnix
 	tid = tid << timestampBits
-	tid |= atomic.AddUint64(&creator.count, 1) << nodeidBits
+	tid |= (atomic.AddUint64(&creator.count, 1) << nodeidBits)
 	tid |= creator.nodeid
-
 	return OrderedID(tid)
 }
 
@@ -100,7 +100,7 @@ func (orderedid OrderedID) Bytes() []byte {
 
 // String return the number string
 func (orderedid OrderedID) String() string {
-	return strconv.FormatInt(int64(orderedid), 10)
+	return strconv.FormatUint(uint64(orderedid), 10)
 }
 
 // Timestamp return the timestamp
@@ -110,7 +110,7 @@ func (orderedid OrderedID) Timestamp() uint64 {
 
 // NodeID return the NodeID
 func (orderedid OrderedID) NodeID() uint16 {
-	return uint16(uint64(orderedid) | nodeidMark)
+	return uint16(uint64(orderedid) & nodeidMark)
 }
 
 // Base32 return a base32 string
