@@ -59,14 +59,15 @@ type OrderedID uint64
 type OrderedIDCreator struct {
 	nodeid uint64
 	count  uint64
-	lastts uint64
-	lock   sync.Mutex
+
+	lock sync.Mutex
 }
 
 const timestampBits uint64 = 64 - 43            // 43bit 支持 2022-03-04 后  200多年时间
 const nodeidBits uint64 = 5                     // 21 - 5 = 16 bit
 const nodeidMark uint64 = (1 << nodeidBits) - 1 //  1bit of 5
 const countlimit uint64 = 1 << (timestampBits - nodeidBits)
+const countMark uint64 = (countlimit - 1) << 5
 
 // New nodeid < 32
 func New(nodeid uint8) *OrderedIDCreator {
@@ -77,7 +78,7 @@ func New(nodeid uint8) *OrderedIDCreator {
 
 	creator := &OrderedIDCreator{
 		nodeid: uint64(nodeid),
-		count:  0,
+		count:  countlimit,
 	}
 
 	return creator
@@ -86,31 +87,19 @@ func New(nodeid uint8) *OrderedIDCreator {
 // Create Create a OrderID
 func (creator *OrderedIDCreator) Create() OrderedID {
 
-	var ts uint64 = uint64(time.Now().UnixNano())
-	var tid uint64 = ts / 1000000
-
+	var tid uint64 = uint64(time.Now().UnixNano()) / 100000
 	creator.lock.Lock()
-	// 防止速度太快count置换到0
-	if creator.count == 0 && tid == creator.lastts {
-		tid++                                           // 如果时间等于上次时间 并且count已经重置. 就等待到下个毫秒
-		time.Sleep(time.Duration((tid * 1000000) - ts)) // 休息到下个毫秒
-	}
-
-	count := creator.count
-	creator.count++
-	if creator.count >= countlimit { // 不利用溢出 回0 这样可能在不同cpu存在bug
+	if creator.count >= countlimit {
 		creator.count = 0
 	}
-
-	creator.lastts = tid
+	count := creator.count
+	creator.count++
 	creator.lock.Unlock()
 
-	tid -= msgStartTimeUnix    // 减去相对时间
-	tid = tid << timestampBits // 偏移到占用位
-
-	tid |= (count << nodeidBits)
-
-	tid |= creator.nodeid
+	tid -= msgStartTimeUnix      // 减去相对时间
+	tid = (tid << timestampBits) // 偏移到占用位
+	tid |= (count << nodeidBits) //
+	tid |= creator.nodeid        //
 
 	return OrderedID(tid)
 
@@ -134,8 +123,13 @@ func (orderedid OrderedID) Timestamp() uint64 {
 }
 
 // NodeID return the NodeID
-func (orderedid OrderedID) NodeID() uint16 {
-	return uint16(uint64(orderedid) & nodeidMark)
+func (orderedid OrderedID) NodeID() uint64 {
+	return uint64(orderedid) & nodeidMark
+}
+
+// NodeID return the NodeID
+func (orderedid OrderedID) Count() uint64 {
+	return (uint64(orderedid) & countMark) >> 5
 }
 
 // Base32 return a base32 string
