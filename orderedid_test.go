@@ -1,8 +1,10 @@
 package orderedid
 
 import (
+	"log"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func BenchmarkCase(b *testing.B) {
@@ -53,5 +55,16 @@ func TestCase1(t *testing.T) {
 }
 
 func TestCase2(t *testing.T) {
-
+	var id OrderedID
+	creator := New(1)
+	var m map[uint64]*OrderedID = make(map[uint64]*OrderedID)
+	for i := 0; i < 1000000; i++ {
+		id = creator.Create()
+		uid := uint64(id)
+		// log.Printf("%b", uid)
+		if _, ok := m[uid]; ok {
+			log.Panicf("len:%d, %b %s", len(m), uid, time.UnixMilli(int64(id.Timestamp())))
+		}
+		m[uid] = &id
+	}
 }

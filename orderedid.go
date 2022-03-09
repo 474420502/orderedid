@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"sync/atomic"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -15,7 +15,7 @@ var msgStartTimeUnix uint64 = func() uint64 {
 	if err != nil {
 		panic(err)
 	}
-	return uint64(t.UnixMilli())
+	return uint64(t.UnixNano() / 1000000)
 }()
 
 const encodeBase32Map = "ybndrfg8ejkmcpqxot1uwisza345h769"
@@ -59,16 +59,19 @@ type OrderedID uint64
 type OrderedIDCreator struct {
 	nodeid uint64
 	count  uint64
+	lastts uint64
+	lock   sync.Mutex
 }
 
-const timestampBits uint64 = 64 - 45
-const nodeidBits uint64 = 10
-const nodeidMark uint64 = 0b1111111111 //  1bit of 10
+const timestampBits uint64 = 64 - 43            // 43bit 支持 2022-03-04 后  200多年时间
+const nodeidBits uint64 = 5                     // 21 - 5 = 16 bit
+const nodeidMark uint64 = (1 << nodeidBits) - 1 //  1bit of 5
+const countlimit uint64 = 1 << (timestampBits - nodeidBits)
 
-// New nodeid <= 1024
-func New(nodeid uint16) *OrderedIDCreator {
+// New nodeid < 32
+func New(nodeid uint8) *OrderedIDCreator {
 
-	if nodeid >= (1 << nodeidBits) {
+	if uint64(nodeid) > nodeidMark {
 		panic(fmt.Sprintf("nodeid must < %d", 1<<nodeidBits))
 	}
 
@@ -83,12 +86,34 @@ func New(nodeid uint16) *OrderedIDCreator {
 // Create Create a OrderID
 func (creator *OrderedIDCreator) Create() OrderedID {
 
-	var tid uint64 = uint64(time.Now().UnixMilli())
-	tid -= msgStartTimeUnix
-	tid = tid << timestampBits
-	tid |= (atomic.AddUint64(&creator.count, 1) << nodeidBits)
+	var ts uint64 = uint64(time.Now().UnixNano())
+	var tid uint64 = ts / 1000000
+
+	creator.lock.Lock()
+	// 防止速度太快count置换到0
+	if creator.count == 0 && tid == creator.lastts {
+		tid++                                           // 如果时间等于上次时间 并且count已经重置. 就等待到下个毫秒
+		time.Sleep(time.Duration((tid * 1000000) - ts)) // 休息到下个毫秒
+	}
+
+	count := creator.count
+	creator.count++
+	if creator.count >= countlimit { // 不利用溢出 回0 这样可能在不同cpu存在bug
+		creator.count = 0
+	}
+
+	creator.lastts = tid
+	creator.lock.Unlock()
+
+	tid -= msgStartTimeUnix    // 减去相对时间
+	tid = tid << timestampBits // 偏移到占用位
+
+	tid |= (count << nodeidBits)
+
 	tid |= creator.nodeid
+
 	return OrderedID(tid)
+
 }
 
 // Bytes return return the  bytes(the 8 byte of int64) of ordererid
