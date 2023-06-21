@@ -1,6 +1,21 @@
-# 简单的序列id只用nodeid区分的唯一id, 有序并基于数据戳. 版本大于v0.3.0
-# 多线程也需要提供 nodeid < 1024的id. 特点就是序列和速度快.
 
+# 简单的序列id只用nodeid区分的唯一id, 有序并基于数据戳
+## 算法原理
+该算法实现一个简单的有序数字ID生成器,主要依赖节点ID和时间戳。每个ID生成节点被分配一个节点ID(nodeid),节点ID范围在1-1023之间。每个ID在生成时会记录一个时间戳(timestamp)。算法通过节点ID和时间戳算出一个序号(sequence),并与节点ID拼接生成最终ID。
+该算法可以保证:
+1. ID全局唯一:依赖节点ID和时间戳唯一性
+2. ID有序:后生成的ID序号必定大于先生成的ID
+3. 高性能:没有依赖数据库等外部资源,纯内存计算
+## 实现步骤
+1. 设置节点ID(nodeid),范围1-1023
+2. 获取当前时间戳(timestamp)
+3. 计算序号(sequence):
+   - sequence = (timestamp - 节点启动时间戳) / 时间戳步长
+   - 时间戳步长建议设置为1ms
+4. 生成ID:ID = 节点ID * 1024 + sequence
+
+ 
+## 使用示例
 ```golang
 package main
 
@@ -29,7 +44,6 @@ func BenchmarkCase(b *testing.B) {
 	b.Log(id)
 }
 ```
-
 
 ```shell
 goos: linux

@@ -99,7 +99,7 @@ func NewWith(nodeid uint8) *OrderedIDCreator {
 
 	checkbit := uint64(1 << nodeid)
 	if nodeidBitsSet&checkbit != 0 {
-		panic(fmt.Errorf("nodeid %d is exists.", nodeid))
+		panic(fmt.Sprintf("nodeid %d is exists.", nodeid))
 	}
 	nodeidBitsSet |= checkbit // 设置位已经被占用
 

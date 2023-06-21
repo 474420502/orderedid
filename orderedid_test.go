@@ -25,9 +25,7 @@ func TestCase1(t *testing.T) {
 	creator := New()
 	for i := 0; i < 1000; i++ {
 
-		var id OrderedID
-
-		id = creator.Create()
+		var id OrderedID = creator.Create()
 
 		idcmp32, err := ParseBase32(id.Base32())
 		if err != nil {
@@ -131,4 +129,11 @@ func TestCaseBitsFullPanic2(t *testing.T) {
 	}
 
 	t.Error(id)
+}
+
+func TestBase32(t *testing.T) {
+	// ORUGS4TFMNQXEBLVBA2W35P7CI6
+
+	creator := New()
+	log.Println(creator.Create().Base58())
 }
